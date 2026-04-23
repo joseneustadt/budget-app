@@ -116,6 +116,21 @@ select.finp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3
 
 /* divider */
 .div{height:1px;background:var(--border);margin:22px 0}
+
+/* ── CONFIG SCREEN ── */
+.cfg-sec{background:var(--surface);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
+.cfg-sec-hdr{padding:14px 16px 10px;border-bottom:1px solid var(--border)}
+.cfg-sec-hdr h3{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.cfg-item{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--border)}
+.cfg-item:last-child{border-bottom:none}
+.cfg-item span{font-size:15px;color:var(--text)}
+.cfg-del{background:none;border:none;color:var(--subtle);font-size:20px;padding:4px 6px;cursor:pointer;line-height:1}
+.cfg-add{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--border)}
+.cfg-add input{flex:1;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:15px;font-family:inherit;color:var(--text);outline:none}
+.cfg-add input:focus{border-color:var(--accent)}
+.cfg-add button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.cfg-note{font-size:12px;color:var(--muted);padding:0 4px 16px;text-align:center}
+.gear{background:none;border:none;color:rgba(255,255,255,.7);font-size:20px;padding:4px;cursor:pointer;line-height:1}
 </style>
 </head>
 <body>
@@ -125,6 +140,7 @@ select.finp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3
   <div class="hdr"><div class="hdr-inner">
     <h1>💼 Budget</h1>
     <div class="hdr-badge" id="hdr-badge" style="display:none" onclick="goTo('pending')">0 pendientes</div>
+    <button class="gear" onclick="goTo('config')">⚙️</button>
   </div></div>
   <div class="body">
     <div id="pending-shortcut" style="display:none">
@@ -164,11 +180,20 @@ select.finp{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3
   <div class="body" id="pending-body"></div>
 </div>
 
+<!-- ══════════ CONFIG ══════════ -->
+<div id="s-config" class="screen">
+  <div class="hdr"><div class="hdr-inner">
+    <button class="back" onclick="goTo('home')">‹</button>
+    <h1>⚙️ Configuración</h1>
+  </div></div>
+  <div class="body" id="config-body"></div>
+</div>
+
 <div id="toast"></div>
 
 <script>
 // ══════ CONFIG ══════
-const C = {
+const DEFAULTS = {
   usd: ['Wise','Físicos','DollarApp'],
   ars: ['Santander','Galicia','ICBC','MP','Efectivo','Francés'],
   fuUSD: ['Jakob','Double Edge','Aaron'],
@@ -178,6 +203,10 @@ const C = {
   meses: ['Ene 25','Feb 25','Mar 25','Abr 25','May 25','Jun 25','Jul 25','Ago 25','Sep 25','Oct 25','Nov 25','Dic 25','Ene 26','Feb 26','Mar 26','Abr 26','May 26','Jun 26','Jul 26','Ago 26','Sep 26','Oct 26','Nov 26','Dic 26','Ene 27','Feb 27','Mar 27'],
   costos: {'Wise|Físicos':{t:'pct',v:0.045,lbl:'4.5%'},'Wise|DollarApp':{t:'fijo',v:3,lbl:'$3 fijo'}}
 };
+let C;
+function loadCfg(){const s=localStorage.getItem('bgt-cfg');C=s?JSON.parse(s):JSON.parse(JSON.stringify(DEFAULTS))}
+function saveCfg(){localStorage.setItem('bgt-cfg',JSON.stringify(C))}
+loadCfg();
 const TIPOS = {
   'gasto-tarjeta':{lbl:'Gasto Tarjeta',ico:'💳',sheet:'TARJETAS'},
   'gasto':{lbl:'Gasto',ico:'💸',sheet:'MOV'},
@@ -218,6 +247,7 @@ function goTo(s){
   window.scrollTo(0,0);
   if(s==='home')updateBadge();
   if(s==='pending')renderPending();
+  if(s==='config')renderConfig();
 }
 
 // ══════ FORMS ══════
@@ -466,6 +496,40 @@ function doCopy(sheet){
   else{fallback(txt);mark()}
 }
 function fallback(t){const ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta)}
+
+// ══════ CONFIG SCREEN ══════
+const CFG_SECS = [
+  {key:'fuUSD', label:'Fuentes de ingreso USD'},
+  {key:'fuARS', label:'Fuentes de ingreso ARS'},
+  {key:'usd',   label:'Cuentas USD'},
+  {key:'ars',   label:'Cuentas ARS'},
+  {key:'tarj',  label:'Tarjetas'},
+  {key:'cats',  label:'Categorías'},
+];
+
+function renderConfig(){
+  let h='';
+  CFG_SECS.forEach(({key,label})=>{
+    h+=`<div class="cfg-sec"><div class="cfg-sec-hdr"><h3>${label}</h3></div>`;
+    C[key].forEach((v,i)=>{
+      h+=`<div class="cfg-item"><span>${v}</span><button class="cfg-del" onclick="delCfgItem('${key}',${i})">×</button></div>`;
+    });
+    h+=`<div class="cfg-add"><input type="text" id="cfg-inp-${key}" placeholder="Agregar nuevo…" onkeydown="if(event.key==='Enter')addCfgItem('${key}')"><button onclick="addCfgItem('${key}')">+ Agregar</button></div></div>`;
+  });
+  h+=`<p class="cfg-note">Los cambios se guardan en este dispositivo.</p>`;
+  $('config-body').innerHTML=h;
+}
+
+function addCfgItem(key){
+  const inp=$(`cfg-inp-${key}`);const val=inp.value.trim();
+  if(!val)return;
+  if(C[key].includes(val))return toast('Ya existe');
+  C[key].push(val);saveCfg();toast(`✓ "${val}" agregado`);renderConfig();
+}
+
+function delCfgItem(key,i){
+  const val=C[key][i];C[key].splice(i,1);saveCfg();toast(`"${val}" eliminado`);renderConfig();
+}
 
 // init
 updateBadge();
