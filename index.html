@@ -225,6 +225,7 @@ let cur = null; // current tipo
 const $ = id => document.getElementById(id);
 const opts = (arr,sel='') => arr.map(v=>`<option value="${v}"${v===sel?' selected':''}>${v}</option>`).join('');
 const fmt = (n,d=2) => n==null?'':Number(n).toLocaleString('es-AR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const parseNum = v => parseFloat(((v||'')+'').replace(',','.'));
 
 function today(){const d=new Date();return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`}
 function curMes(){const d=new Date();const m=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];return `${m[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`}
@@ -258,7 +259,7 @@ const FORMS = {
     </div>
     <div class="fsec"><div class="flbl">Fuente</div><select class="finp" id="f-fu">${opts(C.fuUSD)}</select></div>
     <div class="fsec"><div class="flbl">Monto</div>
-      <div class="finp-prefix"><span class="sym">$</span><input type="number" id="f-mn" inputmode="decimal" placeholder="0.00"></div>
+      <div class="finp-prefix"><span class="sym">$</span><input type="text" id="f-mn" inputmode="decimal" placeholder="0.00"></div>
     </div>
     <div class="fsec"><div class="flbl">Nota (opcional)</div><input class="finp" type="text" id="f-nt" placeholder=""></div>
     <button class="savebtn" onclick="doSave()">Guardar</button>`,
@@ -266,7 +267,7 @@ const FORMS = {
   gasto:()=>`
     <div class="fsec"><div class="flbl">Desde</div><select class="finp" id="f-de">${opts(C.ars)}</select></div>
     <div class="fsec"><div class="flbl">Monto ARS</div>
-      <div class="finp-prefix"><span class="sym">$</span><input type="number" id="f-mn" inputmode="decimal" placeholder="0.00"></div>
+      <div class="finp-prefix"><span class="sym">$</span><input type="text" id="f-mn" inputmode="decimal" placeholder="0.00"></div>
     </div>
     <div class="fsec"><div class="flbl">Concepto</div><input class="finp" type="text" id="f-co" placeholder=""></div>
     <button class="savebtn" onclick="doSave()">Guardar</button>`,
@@ -275,7 +276,7 @@ const FORMS = {
     <div class="fsec"><div class="flbl">Desde</div><select class="finp" id="f-de" onchange="calcCosto()">${opts(C.usd,'Wise')}</select></div>
     <div class="fsec"><div class="flbl">Hacia</div><select class="finp" id="f-ha" onchange="calcCosto()">${opts(C.usd,'DollarApp')}</select></div>
     <div class="fsec"><div class="flbl">Monto USD</div>
-      <div class="finp-prefix"><span class="sym">$</span><input type="number" id="f-mn" inputmode="decimal" placeholder="0.00" oninput="calcCosto()"></div>
+      <div class="finp-prefix"><span class="sym">$</span><input type="text" id="f-mn" inputmode="decimal" placeholder="0.00" oninput="calcCosto()"></div>
     </div>
     <div id="costo-box" style="display:none" class="fsec">
       <div class="ibox"><div class="irow"><span class="ik">Costo</span><span class="iv" id="c-lbl">—</span></div><div class="irow"><span class="ik">Recibís</span><span class="iv big" id="c-net">—</span></div></div>
@@ -287,17 +288,17 @@ const FORMS = {
     <div class="fsec"><div class="flbl">Desde</div><select class="finp" id="f-de">${opts(C.ars,'Santander')}</select></div>
     <div class="fsec"><div class="flbl">Hacia</div><select class="finp" id="f-ha">${opts(C.ars,'Galicia')}</select></div>
     <div class="fsec"><div class="flbl">Monto ARS</div>
-      <div class="finp-prefix"><span class="sym">$</span><input type="number" id="f-mn" inputmode="decimal" placeholder="0.00"></div>
+      <div class="finp-prefix"><span class="sym">$</span><input type="text" id="f-mn" inputmode="decimal" placeholder="0.00"></div>
     </div>
     <div class="fsec"><div class="flbl">Nota (opcional)</div><input class="finp" type="text" id="f-nt" placeholder=""></div>
     <button class="savebtn" onclick="doSave()">Guardar</button>`,
 
   cambio:()=>`
     <div class="fsec"><div class="flbl">Monto USD (de Físicos)</div>
-      <div class="finp-prefix"><span class="sym">$</span><input type="number" id="f-usd" inputmode="decimal" placeholder="0.00" oninput="calcCambio()"></div>
+      <div class="finp-prefix"><span class="sym">$</span><input type="text" id="f-usd" inputmode="decimal" placeholder="0.00" oninput="calcCambio()"></div>
     </div>
     <div class="fsec"><div class="flbl">Tipo de Cambio (TC)</div>
-      <input class="finp finp-big" type="number" id="f-tc" inputmode="decimal" placeholder="0.00" oninput="calcCambio()">
+      <input class="finp finp-big" type="text" id="f-tc" inputmode="decimal" placeholder="0.00" oninput="calcCambio()">
     </div>
     <div id="cambio-box" style="display:none" class="fsec">
       <div class="ibox"><div class="irow"><span class="ik">Recibís ARS</span><span class="iv big" id="c-ars">—</span></div></div>
@@ -313,7 +314,7 @@ const FORMS = {
       <div class="tog"><button class="tbtn on" id="t-a" onclick="togTarj('ARS')">ARS</button><button class="tbtn" id="t-u" onclick="togTarj('USD')">USD</button></div>
     </div>
     <div class="fsec"><div class="flbl">Monto</div>
-      <div class="finp-prefix"><span class="sym">$</span><input type="number" id="f-mn" inputmode="decimal" placeholder="0.00"></div>
+      <div class="finp-prefix"><span class="sym">$</span><input type="text" id="f-mn" inputmode="decimal" placeholder="0.00"></div>
     </div>
     <div class="fsec"><div class="flbl">Cuotas</div>
       <div class="ctr"><button class="cbtn" onclick="adjC(-1)">−</button><span class="cval" id="c-val">1</span><button class="cbtn" onclick="adjC(1)">+</button></div>
@@ -332,14 +333,14 @@ const FORMS = {
       <div class="tog"><button class="tbtn on" id="t-cf" onclick="togPrest('cuota')">Cuota fija</button><button class="tbtn" id="t-sv" onclick="togPrest('seguro')">Seguro variable</button></div>
     </div>
     <div class="fsec"><div class="flbl">Monto ARS</div>
-      <div class="finp-prefix"><span class="sym">$</span><input type="number" id="f-mn" inputmode="decimal" placeholder="0.00"></div>
+      <div class="finp-prefix"><span class="sym">$</span><input type="text" id="f-mn" inputmode="decimal" placeholder="0.00"></div>
     </div>
     <button class="savebtn" onclick="doSave()">Guardar</button>`,
 
   ajuste:()=>`
     <div class="fsec"><div class="flbl">Cuenta</div><select class="finp" id="f-cu">${opts([...C.usd,...C.ars])}</select></div>
     <div class="fsec"><div class="flbl">Diferencia (+ suma, − resta)</div>
-      <div class="finp-prefix"><span class="sym">$</span><input type="number" id="f-mn" inputmode="decimal" placeholder="0.00 (puede ser negativo)"></div>
+      <div class="finp-prefix"><span class="sym">$</span><input type="text" id="f-mn" inputmode="decimal" placeholder="0.00 (puede ser negativo)"></div>
     </div>
     <div class="fsec"><div class="flbl">Concepto</div><input class="finp" type="text" id="f-co" placeholder=""></div>
     <button class="savebtn" onclick="doSave()">Guardar</button>`
@@ -365,14 +366,14 @@ function adjC(d){cuotas=Math.max(1,cuotas+d);$('c-val').textContent=cuotas}
 
 // live calc
 function calcCosto(){
-  const de=$('f-de')?.value,ha=$('f-ha')?.value,mn=parseFloat($('f-mn')?.value)||0;
+  const de=$('f-de')?.value,ha=$('f-ha')?.value,mn=parseNum($('f-mn')?.value)||0;
   const k=`${de}|${ha}`,co=C.costos[k],box=$('costo-box');
   if(!box)return;
   if(co&&mn>0){box.style.display='block';const ca=co.t==='pct'?mn*co.v:co.v;$('c-lbl').textContent=`${co.lbl} = $${fmt(ca)}`;$('c-net').textContent=`$${fmt(mn-ca)} USD`}
   else box.style.display='none';
 }
 function calcCambio(){
-  const u=parseFloat($('f-usd')?.value)||0,tc=parseFloat($('f-tc')?.value)||0,box=$('cambio-box');
+  const u=parseNum($('f-usd')?.value)||0,tc=parseNum($('f-tc')?.value)||0,box=$('cambio-box');
   if(!box)return;
   if(u>0&&tc>0){box.style.display='block';$('c-ars').textContent=`$${fmt(u*tc,0)} ARS`}else box.style.display='none';
 }
@@ -381,7 +382,7 @@ function calcCambio(){
 function doSave(){
   const t=cur;
   let e={id:Date.now(),tipo:t,date:today(),mes:curMes(),done:false};
-  const mn=parseFloat($('f-mn')?.value);
+  const mn=parseNum($('f-mn')?.value);
   
   try{
     if(t==='ingreso'){
@@ -412,7 +413,7 @@ function doSave(){
       e.disp=`${de} → ${ha}  $${fmt(mn,0)} ARS`;
     }
     else if(t==='cambio'){
-      const usd=parseFloat($('f-usd').value),tc=parseFloat($('f-tc').value);
+      const usd=parseNum($('f-usd').value),tc=parseNum($('f-tc').value);
       if(!usd||!tc)return toast('⚠️ Ingresá USD y TC');
       e.usd=usd;e.tc=tc;e.ars=usd*tc;e.destino=$('f-dst').value;e.nota=$('f-nt').value||'';
       e.disp=`Físicos → ${e.destino}  $${fmt(usd)} USD @ ${fmt(tc,0)}`;
