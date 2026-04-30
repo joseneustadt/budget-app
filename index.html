@@ -198,7 +198,7 @@ const DEFAULTS = {
   ars: ['Santander','Galicia','ICBC','MP','Efectivo','Francés'],
   fuUSD: ['Jakob','Double Edge','Aaron'],
   fuARS: ['Bocado'],
-  tarj: ['Visa Santander','Amex Santander','Amex 2 Santander','Visa Galicia','Master Galicia','Visa ICBC','Wise Card','DollarApp Card'],
+  tarj: ['Visa Santander','Amex Santander','Amex 2 Santander','Visa Galicia','Master Galicia','Visa ICBC','Wise Card','DollarApp Card','Francés'],
   cats: ['Hogar','Supermercado','Salud','Suscripciones','Restaurantes','Transporte','Indumentaria','Otros'],
   meses: ['Ene 25','Feb 25','Mar 25','Abr 25','May 25','Jun 25','Jul 25','Ago 25','Sep 25','Oct 25','Nov 25','Dic 25','Ene 26','Feb 26','Mar 26','Abr 26','May 26','Jun 26','Jul 26','Ago 26','Sep 26','Oct 26','Nov 26','Dic 26','Ene 27','Feb 27','Mar 27'],
   costos: {'Wise|Físicos':{t:'pct',v:0.045,lbl:'4.5%'},'Wise|DollarApp':{t:'fijo',v:3,lbl:'$3 fijo'}}
@@ -442,11 +442,28 @@ function doSave(){
   }catch(err){toast('Error al guardar');console.error(err)}
 }
 
+// ══════ HELPERS ══════
+function addMes(mesStr,n){
+  const mN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const p=mesStr.split(' ');let mi=mN.indexOf(p[0])+n,yr=parseInt(p[1]);
+  yr+=Math.floor(mi/12);mi=((mi%12)+12)%12;
+  return `${mN[mi]} ${String(yr).padStart(2,'0')}`;
+}
+// Convierte "May 26" → "01/05/2026" (fecha del 1° del mes, formato DD/MM/YYYY que Excel reconoce como fecha)
+function mesPagoToDate(mesStr){
+  const mN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const p=mesStr.split(' ');
+  const m=String(mN.indexOf(p[0])+1).padStart(2,'0');
+  const y=2000+parseInt(p[1]);
+  return `01/${m}/${y}`;
+}
+
 // ══════ PENDING ══════
 function renderPending(){
   const pd=entries.filter(e=>!e.done);
+  const cuotasP=entries.filter(e=>e.tipo==='gasto-tarjeta'&&e.cuotas>1&&!e.cdone);
   const pb=$('pending-body');
-  if(!pd.length){pb.innerHTML=`<div class="empty"><div class="eico">✅</div><p>Todo exportado.<br>No hay pendientes.</p></div>`;return}
+  if(!pd.length&&!cuotasP.length){pb.innerHTML=`<div class="empty"><div class="eico">✅</div><p>Todo exportado.<br>No hay pendientes.</p></div>`;return}
   const movs=pd.filter(e=>TIPOS[e.tipo].sheet==='MOV');
   const tars=pd.filter(e=>TIPOS[e.tipo].sheet==='TARJETAS');
   let h='';
@@ -460,6 +477,11 @@ function renderPending(){
     tars.forEach(e=>{h+=ecard(e)});
     h+=`<button class="copybtn" id="cbt" onclick="doCopy('TARJETAS')">📋 Copiar para TARJETAS</button></div>`;
   }
+  if(cuotasP.length){
+    h+=`<div class="psec"><div class="psec-hdr"><span class="psec-title">Cuotas (${cuotasP.length})</span><span class="sheet-tag">→ CUOTAS</span></div>`;
+    cuotasP.forEach(e=>{h+=ecard(e)});
+    h+=`<button class="copybtn" id="cbc" onclick="doCopy('CUOTAS')">📋 Copiar para CUOTAS</button></div>`;
+  }
   pb.innerHTML=h;
 }
 
@@ -470,13 +492,15 @@ function ecard(e){
 function delE(id){entries=entries.filter(e=>e.id!==id);save();renderPending()}
 
 function doCopy(sheet){
-  const pd=entries.filter(e=>!e.done&&(sheet==='MOV'?TIPOS[e.tipo].sheet==='MOV':TIPOS[e.tipo].sheet==='TARJETAS'));
+  let pd;
+  if(sheet==='MOV') pd=entries.filter(e=>!e.done&&TIPOS[e.tipo].sheet==='MOV');
+  else if(sheet==='TARJETAS') pd=entries.filter(e=>!e.done&&TIPOS[e.tipo].sheet==='TARJETAS');
+  else pd=entries.filter(e=>e.tipo==='gasto-tarjeta'&&e.cuotas>1&&!e.cdone);
   if(!pd.length)return;
   let rows=[];
   pd.forEach(e=>{
     if(sheet==='MOV'){
-      let r=[];
-      const t=e.tipo;
+      let r=[];const t=e.tipo;
       if(t==='ingreso') r=[e.date,e.mes,`Ingreso ${e.moneda}`,e.fuente,'Wise',e.monto,e.moneda,'','',e.monto,e.nota];
       else if(t==='gasto') r=[e.date,e.mes,'Gasto',e.desde,'',e.monto,'ARS','','',e.monto,e.concepto];
       else if(t==='transf-usd') r=[e.date,e.mes,'Transferencia USD',e.desde,e.hacia,e.monto,'USD','',e.costo||0,e.neto||e.monto,e.nota];
@@ -485,14 +509,24 @@ function doCopy(sheet){
       else if(t==='prestamo') r=[e.date,e.mes,'Pago préstamo','Francés','',e.monto,'ARS','','',e.monto,e.subTipo==='cuota'?'Cuota auto Francés':'Seguro auto Francés'];
       else if(t==='ajuste') r=[e.date,e.mes,'Ajuste',e.cuenta,'',e.monto,'','','',e.monto,e.concepto];
       rows.push(r.join('\t'));
-    } else {
+    } else if(sheet==='TARJETAS'){
       const ars=e.moneda==='ARS'?e.monto:'';
       const usd=e.moneda==='USD'?e.monto:'';
       rows.push([e.date,e.mesPago,e.tarjeta,e.concepto,ars,usd,e.cat,e.cuotas].join('\t'));
+    } else {
+      // CUOTAS — G (Monto x Cuota) y J (Última Cuota) los calcula el Excel con fórmulas
+      rows.push([e.concepto,'Tarjeta',e.tarjeta,e.date,e.cuotas,'',e.monto,mesPagoToDate(e.mesPago),'',e.moneda||'ARS'].join('\t'));
     }
   });
   const txt=rows.join('\n');
-  const mark=()=>{pd.forEach(e=>{const x=entries.find(i=>i.id===e.id);if(x)x.done=true});save();const btn=$(sheet==='MOV'?'cbm':'cbt');if(btn){btn.classList.add('done');btn.textContent='✓ Copiado — pegá en Excel'}toast(`✓ ${pd.length} fila${pd.length!==1?'s':''} copiada${pd.length!==1?'s':''}`);setTimeout(renderPending,1500)};
+  const mark=()=>{
+    pd.forEach(e=>{const x=entries.find(i=>i.id===e.id);if(x){if(sheet==='CUOTAS')x.cdone=true;else x.done=true;}});
+    save();
+    const btn=$(sheet==='MOV'?'cbm':sheet==='TARJETAS'?'cbt':'cbc');
+    if(btn){btn.classList.add('done');btn.textContent='✓ Copiado — pegá en Excel'}
+    toast(`✓ ${pd.length} fila${pd.length!==1?'s':''} copiada${pd.length!==1?'s':''}`);
+    setTimeout(renderPending,1500);
+  };
   if(navigator.clipboard){navigator.clipboard.writeText(txt).then(mark).catch(()=>{fallback(txt);mark()})}
   else{fallback(txt);mark()}
 }
