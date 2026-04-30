@@ -494,7 +494,7 @@ function doCopy(sheet){
     } else if(sheet==='TARJETAS'){
       const ars=e.moneda==='ARS'?e.monto:'';
       const usd=e.moneda==='USD'?e.monto:'';
-      rows.push([e.date,e.mesPago,e.tarjeta,e.concepto,ars,usd,e.cat,e.cuotas].join('\t'));
+      rows.push([e.date,mesPagoToDate(e.mesPago),e.tarjeta,e.concepto,ars,usd,e.cat,e.cuotas].join('\t'));
     } else {
       // CUOTAS — G (Monto x Cuota) y J (Última Cuota) los calcula el Excel con fórmulas
       rows.push([e.concepto,'Tarjeta',e.tarjeta,e.date,e.cuotas,'',e.monto,mesPagoToDate(e.mesPago),'',e.moneda||'ARS'].join('\t'));
